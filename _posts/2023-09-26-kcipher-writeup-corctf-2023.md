@@ -1,6 +1,6 @@
 layout: post
 title: "Kcipher CoRCTF-2023: cross-slab heap traversal"
-date: 2023-09-26 hh:mm:ss -0000
+date: 2023-09-26
 categories: use-after-free kernel-module-exploitation
 
 # corCTF-2023 kcipher writeup: cross-slab heap traversal for cred structure
