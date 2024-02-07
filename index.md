@@ -7,5 +7,5 @@ title: "Index"
 permalink: /
 ---
 
-[Blog](/blog.html)
-[About](/about.md)
+* [Blog](/blog.html)
+* [About](/about.md)

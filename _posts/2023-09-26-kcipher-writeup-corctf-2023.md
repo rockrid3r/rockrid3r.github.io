@@ -1,14 +1,12 @@
+---
 layout: post
-title: "Kcipher CoRCTF-2023: cross-slab heap traversal"
+title: "Kcipher CoRCTF-2023: cross-slab heap traversal for cred structure"
 date: 2023-09-26
 categories: use-after-free kernel-module-exploitation
-
-# corCTF-2023 kcipher writeup: cross-slab heap traversal for cred structure
+---
 
 We are going to discuss 'kcipher' problem from recent corCTF-2023. As its name suggests it was a kernel pwning chal. 
-
-The bug was classic. The funniest part was exploitation: very blurry.
-
+The bug was classic. The funniest part was exploitation.
 Many different solutions exist and different bypasses to pitfalls were created by different people. 
 
 Stay tuned!
