@@ -1,18 +1,9 @@
-title: Rockrid3r
-email: rockrid3r@outlook.com
-description: >- # this means to ignore newlines until "baseurl:"
-  Write an awesome description for your new site here. You can edit this
-  line in _config.yml. It will appear in your document head meta (for
-  Google search results) and in your feed.xml site description.
+title: [Rockrid3r's Track]
+
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 github_username: rockrid3r
 
-# Build settings
+remote_theme: pages-themes/hacker@v0.2.0
 plugins:
-  - jekyll-feed
-
-markdown: kramdown
-kramdown:
-  input: GFM
-  syntax_highlighter: rouge
+  - jekyll-remote-theme

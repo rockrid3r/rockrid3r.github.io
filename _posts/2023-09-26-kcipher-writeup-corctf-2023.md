@@ -1,10 +1,9 @@
 ---
 layout: post
 title: "Kcipher CoRCTF-2023: cross-slab heap traversal for cred structure"
-date: 2023-09-26
-categories: use-after-free kernel-module-exploitation
 ---
 
+![](/assets/images/2023-09-26-KCIPHER-CORCTF/cover.png)
 We are going to discuss 'kcipher' problem from recent corCTF-2023. As its name suggests it was a kernel pwning chal. 
 The bug was classic. The funniest part was exploitation.
 Many different solutions exist and different bypasses to pitfalls were created by different people. 
@@ -14,7 +13,7 @@ Stay tuned!
 ## Reversing
 No sources were provided. 
 After a little bit of rev we figure out the module mainly operates with this kind of structure:
-```
+```c
 struct kcipher {
     int ciph_id; // type of cipher; 1 for xor
     int byt; // byte to xor with
@@ -26,7 +25,7 @@ struct kcipher {
 ```
 
 Which is created and set up inside the function `device_ioctl(cmd=-0x12411100)`.
-```
+```c
 long device_ioctl(void *param_1,int cmd,undefined8 arg)
 
 {
@@ -63,7 +62,7 @@ Also notice the `copy_from_user(kciph, arg, 8)` lets us to control the `ciph_id`
 They both are responsible for controlling the type of ciphering function used in `cipher_read()`.
 
 Fields `struct kcipher->str` and `->size` are not set up here. The job is done in `cipher_write():`
-```
+```c
 undefined8 cipher_write(long filp,undefined8 user_buf,ulong count)
 
 {
@@ -98,7 +97,7 @@ undefined8 cipher_write(long filp,undefined8 user_buf,ulong count)
 
 Okay looks fine. Let's get into `cipher_read`
 
-```
+```c
 long cipher_read(long filp,undefined8 user_buf,ulong count)
 
 {
@@ -133,7 +132,7 @@ long cipher_read(long filp,undefined8 user_buf,ulong count)
 ```
 
 As wee see it just calls `do_encode()` function which does the requested ciphering:
-```
+```c
 
 void do_encode(struct kcipher *kciph)
 
@@ -174,7 +173,7 @@ void do_encode(struct kcipher *kciph)
 
 ## The Bug
 Let's look closer into the `device_ioctl` function. Mainly these lines:
-```
+```c
   // ...
   
   if (cmd == -0x12411100) {
@@ -210,7 +209,7 @@ The first idea came to mind was to use `setxattr` to take control of dangling re
 So we need to figure out another way to take ownership of our dangling reference.
 
 Lucky for us, the function `cipher_write` makes allocation with `kmalloc` providing user-defined size:
-``` 
+```c 
 undefined8 cipher_write(long filp,undefined8 user_buf,ulong count)
 
 {
@@ -247,7 +246,7 @@ So we have a control of dangling `struct kcipher`. Soooo much can be done now.
 ## Constructing primitives
 
 ### Basic setup
-```
+```c
 void basic_setup() {
     //... 
     struct kcipher_req kciph = {
@@ -305,7 +304,7 @@ But `cfd[1]->byt=cfd[2]->byt=0x00`. So `read` from them is fine and need not to 
 To construct arbitrary read we can just set up `kciph->str=desired_addr`, `kciph->size=desired_size`, `kciph->byt=0x00`, `kciph->ciph_id=1`.
 The idea is that `cipher_read` will xor the data with 0x00, which won't change it. Result will be submitted to userland, so we can "read".
 
-```
+```c
 void arbread(uint64_t addr, char* buf, uint64_t size) {
     // requires cfd[1]->str = cfd[2], cfd[1]->byt=0x43
     struct kcipher fake = {
@@ -342,7 +341,7 @@ For fun let's construct the arbitrary xor. This primitive would xor exactly 1 de
 
 Just set `kciph->str=desired_addr`, `kciph->size=1`, `kciph->byt=byte_to_xor_with`, `kciph->ciph_id=1`.
 
-```
+```c
 char arbxor(uint64_t addr, char byt) {
     struct kcipher fake = {
         .ciph_id = 1, // xor
@@ -388,7 +387,7 @@ How do we find the address of `struct cred` to poison it? For security reasons i
 But wait... we have a arbitrary read. And we have a kernel heap pointer. Why not to just traverse all down the heap until we found one! 
 
 To make search simpler, let's allocate maaany of `struct cred`s (0xffff is the max number). 
-```
+```c
 void alloc_n_creds(struct io_uring* ring, size_t n_creds) {
     for (size_t i = 0; i < n_creds; i++) {
         struct __user_cap_header_struct cap_hdr = {
@@ -420,7 +419,7 @@ It remains to use the poisoned `cred`. We just iterate over all registered `pers
 All but one of them will fail. 
 One which corresponds to poisoned `struct cred` will succeed. 
 So as soon as we hit the right one the `cqe->res` will return the flag file descriptor.
-```
+```c
 int flag_fd;
 for (size_t i = 0; i < N_CREDS; ++i) {
     struct io_uring_sqe* sqe = io_uring_get_sqe(&ring);
@@ -453,7 +452,7 @@ if (flag_fd > 0) {
 
 ### Full exploit
 
-```
+```c
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <stdint.h>
